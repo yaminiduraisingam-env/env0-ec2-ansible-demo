@@ -1,0 +1,25 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# terraform/terraform.tfvars.example
+#
+# Copy this file to terraform.tfvars for LOCAL testing with the Terraform CLI.
+# Do NOT commit terraform.tfvars — it contains secrets.
+# The .gitignore in this repo already excludes *.tfvars.
+#
+# For env0 deployments, these values are set as env0 Variables in the UI,
+# not in this file. See the guide (Part 9) for the full variable list.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Required — fill these in before running terraform apply ───────────────
+key_name            = "env0-demo-key"           # Name of your AWS Key Pair
+awx_host            = "https://XXXX.ngrok-free.app"  # Your ngrok URL
+awx_token           = "REPLACE_WITH_AWX_TOKEN"  # From AWX UI: User → Tokens
+awx_job_template_id = 1                         # From AWX UI job template URL
+
+# ── Optional — defaults are fine for free tier ────────────────────────────
+aws_region          = "us-east-1"
+instance_type       = "t2.micro"   # FREE TIER — do not change without checking costs
+auto_stop_hours     = 4            # Instance auto-stops 4 hours after boot
+ebs_volume_size_gb  = 20           # Root volume (free tier max: 30 GB)
+environment_name    = "demo"
+project_name        = "env0-demo"
+allowed_ssh_cidr    = "0.0.0.0/0"  # Restrict to your IP in production

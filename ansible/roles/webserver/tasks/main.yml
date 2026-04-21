@@ -1,0 +1,123 @@
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# ansible/roles/webserver/tasks/main.yml
+#
+# Tasks executed by the webserver role, in order:
+#   1. Update apt cache
+#   2. Install NGINX
+#   3. Configure NGINX (custom nginx.conf)
+#   4. Deploy the website HTML via Jinja2 template
+#   5. Enable and start NGINX
+#   6. Open firewall if ufw is active
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── 1. Package management ─────────────────────────────────────────────────
+
+- name: Update apt package cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600   # Only update if cache is older than 1 hour
+  tags: [packages]
+
+- name: Install NGINX
+  ansible.builtin.apt:
+    name: "{{ nginx_package_name }}"
+    state: present
+  tags: [packages]
+  notify: Reload nginx
+
+# ── 2. NGINX configuration ────────────────────────────────────────────────
+
+- name: Deploy custom nginx.conf
+  ansible.builtin.template:
+    src:   nginx.conf.j2
+    dest:  /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode:  "0644"
+    # Validate the config before replacing the live file.
+    # If validation fails, the file is NOT replaced and nginx is NOT reloaded.
+    validate: nginx -t -c %s
+  notify: Reload nginx
+  tags: [config]
+
+- name: Deploy site virtual host config
+  ansible.builtin.template:
+    src:   site.conf.j2
+    dest:  /etc/nginx/sites-available/env0-demo
+    owner: root
+    group: root
+    mode:  "0644"
+    validate: nginx -t -c /etc/nginx/nginx.conf
+  notify: Reload nginx
+  tags: [config]
+
+- name: Enable the site (symlink to sites-enabled)
+  ansible.builtin.file:
+    src:   /etc/nginx/sites-available/env0-demo
+    dest:  /etc/nginx/sites-enabled/env0-demo
+    state: link
+  notify: Reload nginx
+  tags: [config]
+
+- name: Remove the default NGINX site
+  ansible.builtin.file:
+    path:  /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Reload nginx
+  tags: [config]
+
+# ── 3. Web content ────────────────────────────────────────────────────────
+
+- name: Ensure web root directory exists
+  ansible.builtin.file:
+    path:  "{{ web_root }}"
+    state: directory
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+    mode:  "0755"
+  tags: [content]
+
+- name: Deploy index.html from Jinja2 template
+  ansible.builtin.template:
+    src:   index.html.j2
+    dest:  "{{ web_root }}/index.html"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+    mode:  "0644"
+  tags: [content]
+  notify: Reload nginx
+
+# ── 4. Service management ─────────────────────────────────────────────────
+
+- name: Enable and start NGINX service
+  ansible.builtin.service:
+    name:    "{{ nginx_service_name }}"
+    state:   started
+    enabled: true
+  tags: [service]
+
+# ── 5. Firewall ───────────────────────────────────────────────────────────
+
+- name: Check if ufw is installed
+  ansible.builtin.command: which ufw
+  register: ufw_check
+  changed_when: false
+  failed_when: false
+  tags: [firewall]
+
+- name: Allow HTTP through ufw (if ufw is active)
+  community.general.ufw:
+    rule:  allow
+    port:  "{{ nginx_port | string }}"
+    proto: tcp
+  when: ufw_check.rc == 0
+  tags: [firewall]
+
+- name: Allow HTTPS through ufw (if ufw is active)
+  community.general.ufw:
+    rule:  allow
+    port:  "443"
+    proto: tcp
+  when: ufw_check.rc == 0
+  tags: [firewall]

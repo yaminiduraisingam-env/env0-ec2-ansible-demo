@@ -1,0 +1,78 @@
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# ansible/playbooks/deploy_website.yml
+#
+# This is the main Ansible playbook. AWX runs this when the EC2 instance
+# triggers it via the REST API.
+#
+# What it does:
+#   - Targets the freshly-provisioned EC2 instance IP (passed via extra_vars)
+#   - Applies the 'webserver' role which installs and configures NGINX
+#   - Deploys a dynamic HTML page rendered from a Jinja2 template
+#   - Runs a smoke test to verify the website is reachable
+#
+# extra_vars expected (sent by user_data.sh):
+#   target_host      - the EC2 instance's public IP
+#   instance_id      - AWS instance ID (displayed on the webpage)
+#   project_name     - used in the webpage title
+#   environment_name - used in the webpage
+# ─────────────────────────────────────────────────────────────────────────────
+
+- name: Deploy and verify public NGINX website
+  hosts: "{{ target_host }}"
+  become: true          # Run tasks as root (sudo)
+  gather_facts: true    # Collect system info (OS, IP, date) for the template
+
+  vars:
+    # These defaults are overridden by AWX extra_vars at runtime
+    project_name:     "env0-demo"
+    environment_name: "demo"
+    instance_id:      "unknown"
+
+    # Website content variables
+    site_title:       "Deployed by env0 + Ansible Tower"
+    nginx_port:       80
+    web_root:         /var/www/html
+    nginx_user:       www-data
+
+  pre_tasks:
+    # Verify we can actually reach and manage this host before doing anything
+    - name: Verify Python is available (required by Ansible)
+      ansible.builtin.raw: test -e /usr/bin/python3 || (apt-get update -y && apt-get install -y python3)
+      changed_when: false
+
+    - name: Print deployment info
+      ansible.builtin.debug:
+        msg:
+          - "Target host    : {{ target_host }}"
+          - "Instance ID    : {{ instance_id }}"
+          - "Project        : {{ project_name }}"
+          - "Environment    : {{ environment_name }}"
+          - "OS             : {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Architecture   : {{ ansible_architecture }}"
+          - "Hostname       : {{ ansible_hostname }}"
+
+  roles:
+    - webserver   # Defined in ansible/roles/webserver/
+
+  post_tasks:
+    # After the role runs, do a local HTTP smoke test to confirm NGINX is serving
+    - name: Smoke test — verify website returns HTTP 200
+      ansible.builtin.uri:
+        url: "http://{{ target_host }}:{{ nginx_port }}/"
+        method: GET
+        status_code: 200
+        timeout: 15
+      delegate_to: localhost   # Run this check from the AWX machine, not the EC2 instance
+      become: false
+      register: smoke_test
+      retries: 5
+      delay: 5
+      until: smoke_test.status == 200
+
+    - name: Print website URL
+      ansible.builtin.debug:
+        msg:
+          - "✅ Deployment complete!"
+          - "Website URL: http://{{ target_host }}"
+          - "HTTP status: {{ smoke_test.status }}"

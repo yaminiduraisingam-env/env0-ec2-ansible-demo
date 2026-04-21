@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<!--
+  ansible/roles/webserver/templates/index.html.j2
+  
+  Jinja2 template for the deployed website.
+  Variables in {{ }} are filled in by Ansible at deploy time using
+  facts gathered from the EC2 instance and extra_vars from AWX.
+  
+  Variables used:
+    ansible_default_ipv4.address  - instance's primary IP (from gather_facts)
+    ansible_hostname              - instance's hostname
+    ansible_distribution          - e.g. "Ubuntu"
+    ansible_distribution_version  - e.g. "22.04"
+    ansible_date_time.iso8601     - deployment timestamp
+    project_name                  - from extra_vars
+    environment_name              - from extra_vars
+    instance_id                   - from extra_vars
+    target_host                   - from extra_vars
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ site_title }}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f4f0;
+      color: #2c2c2a;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 3rem 1rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e0dfd8;
+      max-width: 680px;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .header {
+      background: #5c4de8;
+      color: #fff;
+      padding: 2rem 2.5rem;
+    }
+
+    .header h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .header p {
+      font-size: 0.9rem;
+      opacity: 0.85;
+    }
+
+    .badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 4px;
+      padding: 2px 10px;
+      font-size: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .body { padding: 2rem 2.5rem; }
+
+    .pipeline {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 1.5rem 0;
+      flex-wrap: wrap;
+    }
+
+    .step {
+      background: #eeedfe;
+      color: #3c3489;
+      border-radius: 6px;
+      padding: 0.4rem 0.9rem;
+      font-size: 0.8rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .arrow {
+      color: #888780;
+      margin: 0 0.4rem;
+      font-size: 0.85rem;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+
+    .info-box {
+      background: #f5f4f0;
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+    }
+
+    .info-box label {
+      display: block;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #888780;
+      margin-bottom: 0.25rem;
+      font-weight: 500;
+    }
+
+    .info-box value {
+      display: block;
+      font-size: 0.9rem;
+      color: #2c2c2a;
+      font-family: "SF Mono", "Fira Code", monospace;
+      word-break: break-all;
+    }
+
+    .success-bar {
+      background: #eaf3de;
+      border-left: 3px solid #3b6d11;
+      border-radius: 0 6px 6px 0;
+      padding: 0.75rem 1rem;
+      font-size: 0.85rem;
+      color: #27500a;
+      margin-top: 1.5rem;
+    }
+
+    .footer {
+      border-top: 1px solid #e0dfd8;
+      padding: 1rem 2.5rem;
+      font-size: 0.75rem;
+      color: #888780;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h1>{{ site_title }}</h1>
+      <p>Fully automated end-to-end deployment using Infrastructure as Code.</p>
+      <span class="badge">{{ environment_name | upper }}</span>
+    </div>
+
+    <div class="body">
+      <p style="font-size:0.9rem; color:#5f5e5a; margin-bottom:1rem;">
+        This page was provisioned without any manual steps — from a single
+        env0 workflow trigger to a live public URL.
+      </p>
+
+      <div class="pipeline">
+        <span class="step">GitHub Repo</span>
+        <span class="arrow">→</span>
+        <span class="step">env0 Workflow</span>
+        <span class="arrow">→</span>
+        <span class="step">Terraform</span>
+        <span class="arrow">→</span>
+        <span class="step">EC2 Boot</span>
+        <span class="arrow">→</span>
+        <span class="step">AWX API</span>
+        <span class="arrow">→</span>
+        <span class="step" style="background:#eaf3de;color:#27500a;">This Page</span>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-box">
+          <label>Project</label>
+          <value>{{ project_name }}</value>
+        </div>
+        <div class="info-box">
+          <label>Environment</label>
+          <value>{{ environment_name }}</value>
+        </div>
+        <div class="info-box">
+          <label>Instance ID</label>
+          <value>{{ instance_id }}</value>
+        </div>
+        <div class="info-box">
+          <label>Public IP</label>
+          <value>{{ ansible_default_ipv4.address }}</value>
+        </div>
+        <div class="info-box">
+          <label>Hostname</label>
+          <value>{{ ansible_hostname }}</value>
+        </div>
+        <div class="info-box">
+          <label>OS</label>
+          <value>{{ ansible_distribution }} {{ ansible_distribution_version }}</value>
+        </div>
+        <div class="info-box" style="grid-column: 1 / -1;">
+          <label>Deployed at (UTC)</label>
+          <value>{{ ansible_date_time.iso8601 }}</value>
+        </div>
+      </div>
+
+      <div class="success-bar">
+        ✓ NGINX is running and serving this page.
+        Ansible job completed successfully on {{ ansible_date_time.date }}.
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>Managed by env0 + Terraform + Ansible Tower</span>
+      <span>{{ ansible_hostname }} · {{ ansible_default_ipv4.address }}</span>
+    </div>
+  </div>
+</body>
+</html>

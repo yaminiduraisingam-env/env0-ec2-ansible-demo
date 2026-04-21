@@ -1,0 +1,25 @@
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# ansible/roles/webserver/defaults/main.yml
+#
+# Default variable values for the webserver role.
+# These are the LOWEST priority variables in Ansible — anything set in
+# the playbook vars block, extra_vars, or AWX survey will override these.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# NGINX configuration
+nginx_package_name:     nginx
+nginx_service_name:     nginx
+nginx_port:             80
+web_root:               /var/www/html
+nginx_user:             www-data
+nginx_worker_processes: auto
+nginx_worker_connections: 1024
+
+# Page content
+site_title:       "Deployed by env0 + Ansible Tower"
+site_description: "This page was provisioned end-to-end using env0, Terraform, and Ansible."
+project_name:     "env0-demo"
+environment_name: "demo"
+instance_id:      "unknown"
+target_host:      "localhost"

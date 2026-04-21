@@ -1,0 +1,19 @@
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# ansible/requirements.yml
+#
+# Ansible Galaxy collections required by this project.
+# AWX installs these automatically when "Update on launch" is enabled
+# on the project, or you can install them manually:
+#
+#   ansible-galaxy collection install -r ansible/requirements.yml
+# ─────────────────────────────────────────────────────────────────────────────
+
+collections:
+  # Provides community.general.ufw for firewall management
+  - name: community.general
+    version: ">=8.0.0"
+
+  # Provides ansible.posix for system-level tasks (if needed)
+  - name: ansible.posix
+    version: ">=1.5.0"

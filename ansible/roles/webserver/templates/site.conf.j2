@@ -1,0 +1,38 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ansible/roles/webserver/templates/site.conf.j2
+#
+# NGINX virtual host for the deployed website.
+# ─────────────────────────────────────────────────────────────────────────────
+
+server {
+    listen {{ nginx_port }} default_server;
+    listen [::]:{{ nginx_port }} default_server;
+
+    root  {{ web_root }};
+    index index.html;
+
+    server_name _;   # Catch-all — responds to any hostname/IP
+
+    # Security headers
+    add_header X-Frame-Options        "SAMEORIGIN"   always;
+    add_header X-Content-Type-Options "nosniff"      always;
+    add_header X-XSS-Protection       "1; mode=block" always;
+    add_header Referrer-Policy        "no-referrer"  always;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # Block common exploit paths
+    location ~ /\. {
+        deny all;
+    }
+
+    # Custom error pages
+    error_page 404 /index.html;
+    error_page 500 502 503 504 /index.html;
+
+    # Logging
+    access_log /var/log/nginx/env0-demo-access.log;
+    error_log  /var/log/nginx/env0-demo-error.log;
+}

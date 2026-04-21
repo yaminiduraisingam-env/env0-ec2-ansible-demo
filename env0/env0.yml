@@ -1,0 +1,60 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# env0.yml  (place at repo root)
+#
+# This file tells env0 about the templates in this repository.
+# When you connect this GitHub repo to env0, it reads this file and
+# automatically creates the template configuration.
+#
+# Docs: https://docs.env0.com/docs/env0-yml-reference
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: 1
+
+templates:
+  - name: "AWS EC2 + Ansible Tower Demo"
+    description: >
+      Provisions a free-tier AWS EC2 instance running Ubuntu 22.04.
+      On first boot, the instance calls Ansible Tower (AWX) via REST API
+      to trigger a playbook that deploys a public NGINX website.
+    type: terraform
+    path: terraform/            # Directory containing main.tf
+    terraform_version: "1.7.0"
+
+    # ── Variables ────────────────────────────────────────────────────────────
+    # Non-sensitive defaults are listed here.
+    # Sensitive variables (tokens, secret keys) must be added in the
+    # env0 UI under Settings → Variables and marked as Sensitive.
+    variables:
+      - name: aws_region
+        value: "us-east-1"
+        description: "AWS region — us-east-1 recommended for free tier"
+
+      - name: instance_type
+        value: "t2.micro"
+        description: "EC2 instance type — t2.micro is free tier eligible"
+
+      - name: auto_stop_hours
+        value: "4"
+        description: "Hours before instance auto-stops to save money"
+
+      - name: ebs_volume_size_gb
+        value: "20"
+        description: "Root EBS volume in GB (max 30 GB for free tier)"
+
+      - name: environment_name
+        value: "demo"
+
+      - name: project_name
+        value: "env0-demo"
+
+      # ── Sensitive variables — add these in env0 UI, NOT here ─────────────
+      # - AWS_ACCESS_KEY_ID         (type: environment, sensitive)
+      # - AWS_SECRET_ACCESS_KEY     (type: environment, sensitive)
+      # - TF_VAR_awx_token          (type: environment, sensitive)
+      # - TF_VAR_awx_host           (type: environment)
+      # - TF_VAR_key_name           (type: terraform variable)
+      # - TF_VAR_awx_job_template_id (type: terraform variable)
+
+    # ── Policies ─────────────────────────────────────────────────────────────
+    retries_on_deploy: 2
+    retries_on_destroy: 1

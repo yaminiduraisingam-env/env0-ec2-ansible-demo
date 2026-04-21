@@ -1,0 +1,23 @@
+---
+# ─────────────────────────────────────────────────────────────────────────────
+# ansible/roles/webserver/handlers/main.yml
+#
+# Handlers are tasks that only run when NOTIFIED by another task.
+# They run ONCE at the end of a play, even if notified multiple times.
+#
+# Pattern:
+#   A task changes a config file → notifies "Reload nginx"
+#   Multiple config changes → nginx is still only reloaded once, at the end
+# ─────────────────────────────────────────────────────────────────────────────
+
+- name: Reload nginx
+  ansible.builtin.service:
+    name:  "{{ nginx_service_name }}"
+    state: reloaded
+  listen: "Reload nginx"
+
+- name: Restart nginx
+  ansible.builtin.service:
+    name:  "{{ nginx_service_name }}"
+    state: restarted
+  listen: "Restart nginx"

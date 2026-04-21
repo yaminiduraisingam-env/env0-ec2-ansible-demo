@@ -1,0 +1,91 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# awx-local/docker-compose.yml
+#
+# Runs Ansible Tower (AWX) locally on your Mac using Docker Compose.
+#
+# Services:
+#   awx_web      - The main AWX web application (Django + uWSGI)
+#   awx_postgres - PostgreSQL database for AWX state
+#   awx_redis    - Redis for job queue and caching
+#
+# Usage:
+#   cd awx-local
+#   docker compose up -d          # start all services
+#   docker compose logs -f        # watch logs
+#   docker compose down           # stop (keeps data volumes)
+#   docker compose down -v        # stop AND delete all data
+#
+# Access AWX at: http://localhost:8052
+# Default credentials: admin / password
+#
+# Requirements:
+#   - Docker Desktop with at least 4 GB RAM allocated
+#   - To increase: Docker Desktop → Settings → Resources → Memory → 4+ GB
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  awx_web:
+    image: ansible/awx:23.9.0
+    container_name: awx_web
+    restart: unless-stopped     # Restart automatically if Docker Desktop restarts
+    depends_on:
+      awx_postgres:
+        condition: service_healthy
+      awx_redis:
+        condition: service_started
+    ports:
+      - "8052:8052"
+    hostname: awxweb
+    environment:
+      # Change SECRET_KEY to a long random string for any real deployment
+      SECRET_KEY:        "changeme-use-a-long-random-string-here"
+      DATABASE_HOST:     awx_postgres
+      DATABASE_NAME:     awx
+      DATABASE_USER:     awx
+      DATABASE_PASSWORD: awxpass
+      DATABASE_PORT:     5432
+      REDIS_HOST:        awx_redis
+      REDIS_PORT:        6379
+      AWX_ADMIN_USER:    admin
+      AWX_ADMIN_PASSWORD: password
+    volumes:
+      - awx_data:/var/lib/awx
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8052/api/v2/ping/"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s   # AWX takes ~2 minutes to initialize on first run
+
+  awx_postgres:
+    image: postgres:15-alpine
+    container_name: awx_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       awx
+      POSTGRES_USER:     awx
+      POSTGRES_PASSWORD: awxpass
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U awx"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  awx_redis:
+    image: redis:7-alpine
+    container_name: awx_redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+
+volumes:
+  awx_data:
+    name: awx_data
+  pg_data:
+    name: awx_pg_data
+  redis_data:
+    name: awx_redis_data
