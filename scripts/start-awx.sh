@@ -47,6 +47,12 @@ fi
 echo ""
 echo "Starting AWX containers..."
 cd "$AWX_DIR"
+
+# Remove any containers left from a previous failed run (e.g. wrong image tag)
+# This is safe — volumes are preserved so AWX data survives the cleanup
+echo "Cleaning up any previous failed containers..."
+docker compose down --remove-orphans 2>/dev/null || true
+
 docker compose up -d
 
 echo ""
