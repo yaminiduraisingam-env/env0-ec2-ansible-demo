@@ -1,105 +1,81 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # awx-local/docker-compose.yml
 #
-# Runs Ansible Tower (AWX) locally on your Mac using Docker Compose.
+# Runs Ansible Semaphore locally on your Mac using Docker Compose.
 #
-# ⚠️  IMAGE NOTE:
-#   ansible/awx on Docker Hub only contains versions < 18.0.0 (now EOL).
-#   All versions 18+ are published to: quay.io/ansible/awx
-#   This file uses quay.io/ansible/awx:24.2.0 — a verified working release.
+# Semaphore is the actively maintained open-source Ansible UI.
+# It replaces AWX here because the quay.io/ansible/awx image is built for
+# Kubernetes (AWX Operator) and cannot run standalone in Docker Compose.
 #
-# Services:
-#   awx_web      - The main AWX web application (Django + uWSGI)
-#   awx_postgres - PostgreSQL database for AWX state
-#   awx_redis    - Redis for job queue and caching
+# Semaphore provides:
+#   - The same concepts: job templates, inventories, credentials, projects
+#   - A clean REST API that EC2 user_data.sh calls to trigger playbooks
+#   - A web UI at http://localhost:3000
+#   - Fast startup (~10 seconds vs 3-4 minutes for AWX)
 #
 # Usage:
 #   cd awx-local
 #   docker compose up -d          # start all services
 #   docker compose logs -f        # watch logs
 #   docker compose down           # stop (keeps data volumes)
-#   docker compose down -v        # stop AND delete all data
+#   docker compose down -v        # stop AND wipe all data
 #
-# Access AWX at: http://localhost:8052
-# Default credentials: admin / password
-#
-# Requirements:
-#   - Docker Desktop with at least 4 GB RAM allocated
-#   - To increase: Docker Desktop → Settings → Resources → Memory → 4+ GB
+# Access Semaphore at: http://localhost:3000
+# Default credentials: admin / changeme123
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
 
-  awx_web:
-    # ✅ Correct image: quay.io registry, not Docker Hub
-    # Docker Hub ansible/awx is EOL at version 17.x
-    image: quay.io/ansible/awx:24.2.0
-    container_name: awx_web
-    restart: unless-stopped     # Restart automatically if Docker Desktop restarts
-    # Required for AWX 18+: the image entrypoint needs this explicit command
-    command: /usr/bin/launch_awx.sh
-    depends_on:
-      awx_postgres:
-        condition: service_healthy
-      awx_redis:
-        condition: service_healthy
-    ports:
-      - "8052:8052"
-    hostname: awxweb
-    environment:
-      # Change SECRET_KEY to a long random string for any real deployment
-      SECRET_KEY:         "changeme-use-a-long-random-string-here"
-      DATABASE_HOST:      awx_postgres
-      DATABASE_NAME:      awx
-      DATABASE_USER:      awx
-      DATABASE_PASSWORD:  awxpass
-      DATABASE_PORT:      5432
-      REDIS_HOST:         awx_redis
-      REDIS_PORT:         6379
-      AWX_ADMIN_USER:     admin
-      AWX_ADMIN_PASSWORD: password
-    volumes:
-      - awx_data:/var/lib/awx
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8052/api/v2/ping/"]
-      interval: 30s
-      timeout: 10s
-      retries: 15
-      start_period: 180s   # AWX 24.x takes 2–4 min on first run (DB migrations)
-
-  awx_postgres:
-    image: postgres:15-alpine
-    container_name: awx_postgres
+  semaphore:
+    image: semaphoreui/semaphore:latest
+    container_name: semaphore
     restart: unless-stopped
+    ports:
+      - "3000:3000"
     environment:
-      POSTGRES_DB:       awx
-      POSTGRES_USER:     awx
-      POSTGRES_PASSWORD: awxpass
+      SEMAPHORE_DB_USER:     semaphore
+      SEMAPHORE_DB_PASS:     semaphorepass
+      SEMAPHORE_DB_HOST:     semaphore_db
+      SEMAPHORE_DB_PORT:     5432
+      SEMAPHORE_DB_DIALECT:  postgres
+      SEMAPHORE_DB:          semaphore
+      SEMAPHORE_PLAYBOOK_PATH: /tmp/semaphore/
+      SEMAPHORE_ADMIN:          admin
+      SEMAPHORE_ADMIN_NAME:     Admin
+      SEMAPHORE_ADMIN_EMAIL:    admin@localhost
+      SEMAPHORE_ADMIN_PASSWORD: changeme123
+      # Required: random 32-char string used to encrypt stored secrets
+      SEMAPHORE_ACCESS_KEY_ENCRYPTION: "gs72mPntFATGJs9qK0pQ0rKtfidlexiMjYvc"
+    depends_on:
+      semaphore_db:
+        condition: service_healthy
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - semaphore_data:/home/semaphore
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U awx"]
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/api/ping"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
 
-  awx_redis:
-    image: redis:7-alpine
-    container_name: awx_redis
+  semaphore_db:
+    image: postgres:15-alpine
+    container_name: semaphore_db
     restart: unless-stopped
-    command: redis-server --save 60 1 --loglevel warning
+    environment:
+      POSTGRES_DB:       semaphore
+      POSTGRES_USER:     semaphore
+      POSTGRES_PASSWORD: semaphorepass
     volumes:
-      - redis_data:/data
+      - semaphore_pg:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "pg_isready -U semaphore"]
       interval: 10s
       timeout: 5s
       retries: 5
 
 volumes:
-  awx_data:
-    name: awx_data
-  pg_data:
-    name: awx_pg_data
-  redis_data:
-    name: awx_redis_data
+  semaphore_data:
+    name: semaphore_data
+  semaphore_pg:
+    name: semaphore_pg_data
